@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>IoT DHT11 Realtime Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <!-- Icon -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <style>
+    :root {
+      --bg1: #0f172a;
+      --bg2: #020617;
+      --primary: #38bdf8;
+      --accent-temp: #fb7185;
+      --accent-hum: #4ade80;
+      --card-bg: rgba(15, 23, 42, 0.95);
+      --card-border: rgba(148, 163, 184, 0.3);
+      --text-main: #e5e7eb;
+      --text-sub: #9ca3af;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at top, #0ea5e9 0, transparent 55%),
+                  radial-gradient(circle at bottom, #22c55e 0, transparent 55%),
+                  linear-gradient(145deg, var(--bg1), var(--bg2));
+      color: var(--text-main);
+    }
+
+    .container {
+      width: 95%;
+      max-width: 900px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.9));
+      border-radius: 22px;
+      padding: 24px 22px 18px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    header h1 i {
+      color: var(--primary);
+    }
+
+    .sub {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+    }
+
+    .status-badge {
+      font-size: 0.78rem;
+      padding: 6px 14px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(34, 197, 94, 0.5);
+      background: rgba(34, 197, 94, 0.15);
+      color: #bbf7d0;
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.6);
+      transition: all 0.25s ease;
+    }
+    .status-badge.offline {
+      border-color: rgba(239, 68, 68, 0.7);
+      background: rgba(239, 68, 68, 0.12);
+      color: #fecaca;
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.7);
+    }
+
+    /* Cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 18px;
+      padding: 14px 16px;
+      border: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .card-value {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .card-value span.value {
+      font-size: 2.1rem;
+      font-weight: 600;
+    }
+
+    .card-value span.unit {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+    }
+
+    .card-icon {
+      font-size: 1.7rem;
+    }
+
+    .temp .card-icon { color: var(--accent-temp); }
+    .hum .card-icon { color: var(--accent-hum); }
+
+    .last-update {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      margin-top: 4px;
+    }
+
+    /* Chart */
+    .chart-wrapper {
+      background: var(--card-bg);
+      padding: 14px 14px 10px;
+      border-radius: 18px;
+      border: 1px solid var(--card-border);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 320px;
+      width: 100%;
+    }
+
+    .value-glow {
+      animation: glow 0.5s ease;
+    }
+
+    @keyframes glow {
+      0% { text-shadow: 0 0 0 rgba(255,255,255,0); }
+      50% { text-shadow: 0 0 14px rgba(255,255,255,1); }
+      100% { text-shadow: 0 0 0 rgba(255,255,255,0); }
+    }
+
+    @media (max-width: 640px) {
+      .cards { grid-template-columns: 1fr; }
+      .chart-container { height: 260px; }
+      header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1><i class="fas fa-microchip"></i> DHT11 Realtime Monitor</h1>
+        <div class="sub">Arduino + Bluetooth (UART) + Node.js + WebSocket</div>
+        <div class="last-update">Cập nhật cuối: <span id="lastUpdate">--:--:--</span></div>
+      </div>
+      <div id="statusBadge" class="status-badge offline">
+        <i class="fas fa-wifi"></i>
+        <span>Offline</span>
+      </div>
+    </header>
+
+    <div class="cards">
+      <div class="card temp">
+        <div>
+          <div class="card-title">Nhiệt độ</div>
+          <div class="card-value">
+            <span id="tempValue" class="value">--</span>
+            <span class="unit">°C</span>
+          </div>
+        </div>
+        <div class="card-icon">
+          <i class="fas fa-temperature-high"></i>
+        </div>
+      </div>
+
+      <div class="card hum">
+        <div>
+          <div class="card-title">Độ ẩm</div>
+          <div class="card-value">
+            <span id="humValue" class="value">--</span>
+            <span class="unit">%</span>
+          </div>
+        </div>
+        <div class="card-icon">
+          <i class="fas fa-tint"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-wrapper">
+      <div class="chart-header">
+        <span><i class="fas fa-chart-line"></i> Biểu đồ nhiệt độ theo thời gian</span>
+        <span style="font-size:0.75rem;color:var(--text-sub);">Hiển thị 20 mẫu gần nhất</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="tempChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.io client (từ server Node.js) -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    const socket = io();
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = statusBadge.querySelector('span');
+    const tempSpan = document.getElementById('tempValue');
+    const humSpan = document.getElementById('humValue');
+    const lastUpdate = document.getElementById('lastUpdate');
+
+    // Trạng thái kết nối
+    socket.on('connect', () => {
+      statusBadge.classList.remove('offline');
+      statusText.textContent = 'Online';
+    });
+
+    socket.on('disconnect', () => {
+      statusBadge.classList.add('offline');
+      statusText.textContent = 'Offline';
+    });
+
+    // Chart.js
+    const ctx = document.getElementById('tempChart').getContext('2d');
+
+    const gradientTemp = ctx.createLinearGradient(0, 0, 0, 300);
+    gradientTemp.addColorStop(0, 'rgba(251, 113, 133, 0.5)');
+    gradientTemp.addColorStop(1, 'rgba(15, 23, 42, 0)');
+
+    const maxPoints = 20;
+
+    Chart.defaults.color = '#9ca3af';
+    Chart.defaults.font.family = "'Poppins', sans-serif";
+
+    const tempChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Nhiệt độ (°C)',
+          data: [],
+          borderColor: '#fb7185',
+          backgroundColor: gradientTemp,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          tension: 0.35,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15,23,42,0.95)',
+            borderColor: 'rgba(148,163,184,0.6)',
+            borderWidth: 1,
+            cornerRadius: 8
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(148,163,184,0.15)', drawBorder: false },
+            ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }
+          },
+          y: {
+            grid: { color: 'rgba(148,163,184,0.12)', drawBorder: false },
+            beginAtZero: false
+          }
+        }
+      }
+    });
+
+    // Nhận dữ liệu từ server
+    socket.on('sensor-data', (data) => {
+      const t = Number(data.temp);
+      const h = Number(data.hum);
+
+      // Cập nhật số
+      updateValue(tempSpan, t);
+      updateValue(humSpan, h);
+      updateTime();
+
+      // Cập nhật biểu đồ
+      const timeLabel = new Date().toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+
+      tempChart.data.labels.push(timeLabel);
+      tempChart.data.datasets[0].data.push(t);
+
+      if (tempChart.data.labels.length > maxPoints) {
+        tempChart.data.labels.shift();
+        tempChart.data.datasets[0].data.shift();
+      }
+
+      tempChart.update('none');   // không animate để update mượt
+    });
+
+    function updateValue(el, val) {
+      el.textContent = val.toFixed(1);
+      el.classList.remove('value-glow');
+      void el.offsetWidth; // reset animation
+      el.classList.add('value-glow');
+    }
+
+    function updateTime() {
+      lastUpdate.textContent = new Date().toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+  </script>
+</body>
+</html>
